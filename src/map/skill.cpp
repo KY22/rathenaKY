@@ -5883,9 +5883,20 @@ int32 skill_castend_damage_id (struct block_list* src, struct block_list *bl, ui
 			if (skill_id == DK_SERVANT_W_DEMOL && !(tsc && tsc->getSCE(SC_SERVANT_SIGN) && tsc->getSCE(SC_SERVANT_SIGN)->val1 == src->id))
 				break;
 
-			// Deft Stab - Make sure the flag of 2 is passed on when the skill is double casted.
-			if (skill_id == ABC_DEFT_STAB && flag&2)
-				sflag |= 2;
+			switch (skill_id) {
+				case MG_FIREBALL:
+					// For players, the distance between original target and splash target determines the damage
+					if (sd != nullptr) {
+						if (block_list* orig_bl = map_id2bl(skill_area_temp[1]); orig_bl != nullptr)
+							sflag |= distance_bl(orig_bl, bl);
+					}
+					break;
+				case ABC_DEFT_STAB:
+					// Deft Stab - Make sure the flag of 2 is passed on when the skill is double casted.
+					if (flag&2)
+						sflag |= 2;
+					break;
+			}
 
 			if( flag&SD_LEVEL )
 				sflag |= SD_LEVEL; // -1 will be used in packets instead of the skill level
@@ -19780,6 +19791,10 @@ void skill_consume_requirement(map_session_data *sd, uint16 skill_id, uint16 ski
 			case MC_IDENTIFY:
 				require.sp = 0;
 				break;
+			case AL_HOLYLIGHT:
+				if(sd->sc.getSCE(SC_SPIRIT) && sd->sc.getSCE(SC_SPIRIT)->val2 == SL_PRIEST)
+					require.sp *= 5;
+				break;
 			case MO_KITRANSLATION:
 				//Spiritual Bestowment only uses spirit sphere when giving it to someone
 				require.spiritball = 0;
@@ -20125,10 +20140,6 @@ struct s_skill_condition skill_get_requirement(map_session_data* sd, uint16 skil
 #else
 				req.zeny -= req.zeny*10/100;
 #endif
-			break;
-		case AL_HOLYLIGHT:
-			if(sc && sc->getSCE(SC_SPIRIT) && sc->getSCE(SC_SPIRIT)->val2 == SL_PRIEST)
-				req.sp *= 5;
 			break;
 		case SL_SMA:
 		case SL_STUN:
